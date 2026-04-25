@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgis/postgis:14-3.3
+    container_name: sevaknet-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sevaknet
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sevaknet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: sevaknet-backend
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/sevaknet
+      - PORT=4000
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: sevaknet-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - BACKEND_URL=http://backend:4000
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
