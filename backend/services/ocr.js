@@ -1,92 +1,82 @@
 'use strict';
 
 /**
- * Server-side OCR service.
- * Tesseract.js runs CLIENT-SIDE in the browser for the demo.
- * This module handles text parsing / field extraction from already-extracted text
- * if the frontend sends raw OCR text to the backend for parsing.
+ * services/ocr.js
+ * Uses Google Gemini API to extract structured fields from raw OCR text.
+ * Replaces the previous regex-based extractor.
  */
 
-const CATEGORY_KEYWORDS = {
-  medical: ['medical', 'health', 'hospital', 'doctor', 'medicine', 'sick', 'injury', 'disease'],
-  food: ['food', 'hunger', 'ration', 'grain', 'meal', 'eating', 'starvation'],
-  water: ['water', 'flood', 'drinking', 'supply', 'contamination', 'sanitation'],
-  shelter: ['shelter', 'house', 'home', 'roof', 'displaced', 'homeless', 'repair'],
-  education: ['school', 'education', 'student', 'learning', 'teacher', 'class'],
-};
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const VALID_CATEGORIES = ['medical', 'food', 'water', 'shelter', 'education'];
 
 /**
- * Extract structured fields from raw OCR text.
+ * Send raw OCR text to Gemini and extract structured survey fields.
+ * Returns an object with: category, affected_people, urgency_level, ward_name, description.
  *
- * @param {string} rawText  OCR-extracted plain text
- * @returns {Object} { ward, affected_count, category, confidence }
+ * @param {string} rawText
+ * @returns {Promise<Object>}
  */
-function extractFieldsFromText(rawText) {
-  const text = (rawText || '').toLowerCase();
-  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-
-  // --- Ward extraction ---
-  let ward = null;
-  const wardMatch = rawText.match(/ward\s*[:#-]?\s*(\w[\w\s]*)/i);
-  if (wardMatch) ward = wardMatch[1].trim();
-
-  // --- Affected people count ---
-  let affected_count = null;
-  const countPatterns = [
-    /(\d+)\s*(?:people|persons?|families|households|affected)/i,
-    /affected[:\s]+(\d+)/i,
-    /population[:\s]+(\d+)/i,
-    /(\d{1,5})\s+(?:need|needs|requiring)/i,
-  ];
-  for (const pattern of countPatterns) {
-    const m = rawText.match(pattern);
-    if (m) { affected_count = parseInt(m[1], 10); break; }
-  }
-  // Fallback: first standalone 2–5 digit number
-  if (affected_count == null) {
-    const fallback = rawText.match(/\b(\d{2,5})\b/);
-    if (fallback) affected_count = parseInt(fallback[1], 10);
+async function extractFieldsFromText(rawText) {
+  if (!rawText || rawText.trim().length < 5) {
+    return { category: null, affected_people: null, urgency_level: null, ward_name: null, description: null, confidence: 'low' };
   }
 
-  // --- Category detection ---
-  let category = null;
-  let maxHits = 0;
-  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    const hits = keywords.filter((kw) => text.includes(kw)).length;
-    if (hits > maxHits) { maxHits = hits; category = cat; }
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+  const prompt = `You are a field data extractor for a West Bengal community aid platform.
+Given the following raw OCR text from a paper survey form, extract structured fields and return ONLY valid JSON.
+
+Raw OCR text:
+"""
+${rawText}
+"""
+
+Return JSON with these exact keys:
+{
+  "category": "<one of: medical, food, water, shelter, education, or null>",
+  "affected_people": <integer or null>,
+  "urgency_level": <integer 1-5 or null>,
+  "ward_name": "<string or null>",
+  "block": "<string or null>",
+  "district": "<string or null>",
+  "description": "<cleaned summary of the situation in 1-2 sentences or null>",
+  "confidence": "<low|medium|high>"
+}
+
+Rules:
+- Only use "category" values from the allowed list
+- "urgency_level" 5 = critical, 1 = very low. Infer from language if not stated.
+- Return null for any field you cannot determine from the text
+- Return ONLY the raw JSON object, no markdown fences`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text().trim();
+
+  // Strip markdown code fences if Gemini wraps in them
+  const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  try {
+    const parsed = JSON.parse(cleaned);
+
+    // Sanitise
+    if (!VALID_CATEGORIES.includes(parsed.category)) parsed.category = null;
+    if (parsed.affected_people != null) parsed.affected_people = Math.max(0, parseInt(parsed.affected_people, 10) || 0);
+    if (parsed.urgency_level != null) parsed.urgency_level = Math.min(5, Math.max(1, parseInt(parsed.urgency_level, 10) || 3));
+
+    return parsed;
+  } catch {
+    return { category: null, affected_people: null, urgency_level: null, ward_name: null, description: rawText.slice(0, 300), confidence: 'low' };
   }
-
-  // --- Confidence score (heuristic) ---
-  let confidence = 0;
-  if (ward) confidence += 0.35;
-  if (affected_count != null) confidence += 0.35;
-  if (category) confidence += 0.30;
-
-  return {
-    ward: ward || null,
-    affected_count: affected_count || null,
-    category: category || null,
-    confidence: Math.round(confidence * 100) / 100,
-    raw_text: rawText,
-  };
 }
 
 /**
- * Validate and sanitise extracted fields.
- * @param {Object} fields
- * @returns {Object}
+ * Alias for backward-compat with route that calls sanitiseExtracted.
  */
-function sanitiseExtracted(fields) {
-  return {
-    ward: fields.ward ? String(fields.ward).slice(0, 100) : null,
-    affected_count: fields.affected_count != null
-      ? Math.max(1, Math.min(100000, Number(fields.affected_count)))
-      : null,
-    category: ['medical','food','water','shelter','education'].includes(fields.category)
-      ? fields.category
-      : null,
-    confidence: fields.confidence ?? 0,
-  };
+function sanitiseExtracted(extracted) {
+  return extracted;
 }
 
 module.exports = { extractFieldsFromText, sanitiseExtracted };

@@ -68,8 +68,9 @@ function getUrgencyLabel(score) {
  * @param {Object} survey
  * @returns {string}
  */
-function deriveTitleFromSurvey({ category, urgency_level, affected_people }) {
-  const cat = (category || 'general').charAt(0).toUpperCase() + category.slice(1);
+function deriveTitleFromSurvey({ category, urgency_level, affected_people, ai_suggested_title }) {
+  if (ai_suggested_title) return ai_suggested_title;
+  const cat = (category || 'general').charAt(0).toUpperCase() + (category || 'general').slice(1);
   const lvl = urgency_level >= 4 ? 'Urgent ' : '';
   return `${lvl}${cat} Aid — ${affected_people} affected`;
 }

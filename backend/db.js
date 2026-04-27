@@ -1,34 +1,41 @@
-const { Pool } = require('pg');
+'use strict';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
+/**
+ * db.js — Firebase Admin SDK Firestore client
+ * Replaces the previous PostgreSQL pool.
+ */
 
-pool.on('error', (err) => {
-  console.error('[DB] Unexpected error on idle client:', err.message);
-});
+const admin = require('firebase-admin');
 
-pool.on('connect', () => {
-  console.log('[DB] New client connected to PostgreSQL');
-});
+if (!admin.apps.length) {
+  // Uses GOOGLE_APPLICATION_CREDENTIALS env var automatically, or
+  // falls back to Application Default Credentials (ADC) in Cloud environments.
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault(),
+    projectId: process.env.FIREBASE_PROJECT_ID || 'sevaknet-wb',
+  });
+}
 
-const query = async (text, params) => {
-  const start = Date.now();
-  try {
-    const res = await pool.query(text, params);
-    const duration = Date.now() - start;
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[DB] query executed in ${duration}ms — rows: ${res.rowCount}`);
-    }
-    return res;
-  } catch (err) {
-    console.error('[DB] Query error:', err.message);
-    console.error('[DB] Query text:', text);
-    throw err;
-  }
-};
+const db = admin.firestore();
 
-const getClient = () => pool.connect();
+// ─── Helpers that mirror the old PostgreSQL interface ──────────────────────────
 
-module.exports = { query, getClient, pool };
+/**
+ * Get a Firestore collection reference.
+ * @param {string} name
+ */
+const col = (name) => db.collection(name);
+
+/**
+ * Convert a Firestore DocumentSnapshot to a plain object with `id`.
+ * @param {FirebaseFirestore.DocumentSnapshot} doc
+ */
+const docToObj = (doc) => (doc.exists ? { id: doc.id, ...doc.data() } : null);
+
+/**
+ * Convert a Firestore QuerySnapshot to an array of plain objects with `id`.
+ * @param {FirebaseFirestore.QuerySnapshot} snap
+ */
+const snapToArr = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+module.exports = { db, col, docToObj, snapToArr, admin };

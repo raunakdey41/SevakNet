@@ -1,159 +1,290 @@
 'use strict';
 
 const express = require('express');
-const router = express.Router();
-const { query, getClient } = require('../db');
+const router  = express.Router();
+const multer  = require('multer');
+const { col, snapToArr, docToObj } = require('../db');
+const { v4: uuidv4 } = require('uuid');
+const { sendTaskAssignedSMS, sendTaskCompletedSMS, sendTaskReopenedSMS } = require('../services/sms');
+const { uploadCompletionPhoto } = require('../services/storage');
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are accepted.'));
+  },
+});
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+async function enrichAssignment(a) {
+  const [volDoc, taskDoc] = await Promise.all([
+    col('volunteers').doc(a.volunteer_id).get(),
+    col('tasks').doc(a.task_id).get(),
+  ]);
+  const vol  = volDoc.exists  ? volDoc.data()  : {};
+  const task = taskDoc.exists ? taskDoc.data() : {};
+  return {
+    ...a,
+    volunteer_name: vol.name           || null,
+    phone:          vol.phone          || null,
+    skills:         vol.skills         || [],
+    task_title:     task.title         || null,
+    category:       task.category      || null,
+    urgency_score:  task.urgency_score || null,
+    skill_required: task.skill_required || null,
+    ward_name:      task.ward_name     || null,
+    block:          task.block         || null,
+    district:       task.district      || null,
+    deadline:       task.deadline      || null,
+  };
+}
+
+// ─── POST /api/assignments ────────────────────────────────────────────────────
 /**
- * POST /api/assignments
  * Assign a volunteer to a task.
+ * Sends an SMS notification to the volunteer immediately.
  */
 router.post('/', async (req, res) => {
   const { task_id, volunteer_id, match_score } = req.body;
-
   if (!task_id || !volunteer_id) {
     return res.status(400).json({ error: 'task_id and volunteer_id are required.' });
   }
 
-  const client = await getClient();
   try {
-    await client.query('BEGIN');
-
-    // Check task is still open
-    const taskCheck = await client.query(
-      `SELECT id, status FROM tasks WHERE id = $1 FOR UPDATE`,
-      [task_id]
-    );
-    if (!taskCheck.rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Task not found.' });
-    }
-    if (taskCheck.rows[0].status !== 'open') {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ error: `Task is already ${taskCheck.rows[0].status}.` });
+    // Validate task
+    const taskDoc = await col('tasks').doc(task_id).get();
+    if (!taskDoc.exists) return res.status(404).json({ error: 'Task not found.' });
+    const task = taskDoc.data();
+    if (task.status !== 'open') {
+      return res.status(409).json({ error: `Task is already ${task.status}.` });
     }
 
-    // Check volunteer exists and is active
-    const volCheck = await client.query(
-      `SELECT id, is_active FROM volunteers WHERE id = $1`,
-      [volunteer_id]
-    );
-    if (!volCheck.rows.length || !volCheck.rows[0].is_active) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Volunteer not found or inactive.' });
+    // Validate volunteer — treat missing is_active as true (default active)
+    const volDoc = await col('volunteers').doc(volunteer_id).get();
+    if (!volDoc.exists) {
+      return res.status(404).json({ error: 'Volunteer not found.' });
+    }
+    const vol = volDoc.data();
+    if (vol.is_active === false) {
+      return res.status(400).json({ error: 'Volunteer is not active.' });
     }
 
-    // Create assignment
-    const assignResult = await client.query(
-      `INSERT INTO assignments (task_id, volunteer_id, match_score, status)
-       VALUES ($1, $2, $3, 'pending') RETURNING *`,
-      [task_id, volunteer_id, match_score || null]
-    );
+    // Create assignment — status 'pending' until volunteer accepts on their end
+    const assignmentId = uuidv4();
+    const assignment = {
+      id:           assignmentId,
+      task_id,
+      volunteer_id,
+      match_score:  match_score || null,
+      status:       'pending',
+      assigned_at:  new Date().toISOString(),
+      completed_at: null,
+      proof_url:    null,
+      sms_sent:     false,
+    };
+    await col('assignments').doc(assignmentId).set(assignment);
 
-    // Update task status
-    await client.query(
-      `UPDATE tasks SET status = 'assigned' WHERE id = $1`,
-      [task_id]
-    );
+    // Task moves to 'assigned'
+    await col('tasks').doc(task_id).update({ status: 'assigned' });
 
-    await client.query('COMMIT');
-    res.status(201).json(assignResult.rows[0]);
+    // Send SMS — fire and forget
+    sendTaskAssignedSMS({
+      phone:        vol.phone,
+      volunteerName: vol.name,
+      taskTitle:    task.title,
+      category:     task.category,
+      district:     task.district,
+      block:        task.block,
+      urgencyScore: task.urgency_score,
+      deadline:     task.deadline,
+      lat:          task.lat,
+      lng:          task.lng,
+    }).then((res) => {
+      if (res && res.sid) {
+        col('assignments').doc(assignmentId).update({ sms_sent: true });
+      }
+    }).catch(err => {
+      console.error(`[Assignment SMS Error] ${err.message}`);
+    });
+
+    const enriched = await enrichAssignment(assignment);
+    res.status(201).json(enriched);
   } catch (err) {
-    await client.query('ROLLBACK');
     console.error('[POST /assignments]', err.message);
     res.status(500).json({ error: err.message });
-  } finally {
-    client.release();
   }
 });
 
 /**
- * GET /api/assignments
- * List all assignments with joined volunteer + task info.
+ * GET /api/assignments/mine
+ * Fetch assignments for the logged-in volunteer.
+ * Expects volunteerId in query for now (later can use JWT).
  */
+router.get('/mine', async (req, res) => {
+  // Use user id from JWT if present, otherwise fall back to query param
+  const volunteerId = req.user?.id || req.query.volunteerId;
+  
+  if (!volunteerId) {
+    return res.status(400).json({ error: 'volunteerId is required (via token or query)' });
+  }
+
+  try {
+    const snap = await col('assignments').where('volunteer_id', '==', volunteerId).get();
+    const assignments = snapToArr(snap);
+    const enriched = await Promise.all(assignments.map(enrichAssignment));
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET /api/assignments ─────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
     const { volunteer_id, task_id, status } = req.query;
-    const conditions = [];
-    const params = [];
-    let i = 1;
 
-    if (volunteer_id) { conditions.push(`a.volunteer_id = $${i++}`); params.push(volunteer_id); }
-    if (task_id) { conditions.push(`a.task_id = $${i++}`); params.push(task_id); }
-    if (status) { conditions.push(`a.status = $${i++}`); params.push(status); }
+    // Fetch all, filter in memory (avoids composite index requirement)
+    const snap = await col('assignments').get();
+    let assignments = snapToArr(snap);
 
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    if (volunteer_id) assignments = assignments.filter((a) => a.volunteer_id === volunteer_id);
+    if (task_id)      assignments = assignments.filter((a) => a.task_id === task_id);
+    if (status)       assignments = assignments.filter((a) => a.status === status);
 
-    const { rows } = await query(
-      `SELECT a.*,
-              v.name AS volunteer_name, v.phone, v.skills,
-              t.title AS task_title, t.urgency_score, t.skill_required,
-              l.ward_name, l.block
-       FROM assignments a
-       JOIN volunteers v ON a.volunteer_id = v.id
-       JOIN tasks t ON a.task_id = t.id
-       JOIN locations l ON t.location_id = l.id
-       ${where}
-       ORDER BY a.assigned_at DESC`,
-      params
-    );
-    res.json(rows);
+    assignments.sort((a, b) => new Date(b.assigned_at) - new Date(a.assigned_at));
+
+    const enriched = await Promise.all(assignments.map(enrichAssignment));
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/**
- * GET /api/assignments/:id
- */
+// ─── GET /api/assignments/:id ─────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await query(
-      `SELECT a.*,
-              v.name AS volunteer_name, v.phone, v.skills,
-              t.title AS task_title, t.urgency_score, t.skill_required
-       FROM assignments a
-       JOIN volunteers v ON a.volunteer_id = v.id
-       JOIN tasks t ON a.task_id = t.id
-       WHERE a.id = $1`,
-      [req.params.id]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Assignment not found.' });
-    res.json(rows[0]);
+    const doc = await col('assignments').doc(req.params.id).get();
+    const assignment = docToObj(doc);
+    if (!assignment) return res.status(404).json({ error: 'Assignment not found.' });
+    const enriched = await enrichAssignment(assignment);
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ─── PATCH /api/assignments/:id ───────────────────────────────────────────────
 /**
- * PATCH /api/assignments/:id
- * Update assignment status (e.g. accepted, completed, rejected).
+ * Update assignment status: pending → accepted → in-progress → rejected
+ * Completion requires photo — use POST /:id/complete instead.
  */
-router.patch('/:id', async (req, res) => {
+router.patch('/:id/status', async (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['pending', 'accepted', 'in_progress', 'completed', 'rejected'];
+  const validStatuses = ['pending', 'accepted', 'in-progress', 'rejected'];
   if (!validStatuses.includes(status)) {
-    return res.status(400).json({ error: `status must be one of: ${validStatuses.join(', ')}` });
+    return res.status(400).json({
+      error: `Use POST /assignments/:id/complete to complete. Otherwise status must be one of: ${validStatuses.join(', ')}`,
+    });
   }
 
   try {
-    const { rows } = await query(
-      `UPDATE assignments SET status = $2 WHERE id = $1 RETURNING *`,
-      [req.params.id, status]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Assignment not found.' });
+    const ref = col('assignments').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Assignment not found.' });
 
-    // If completed/rejected, re-open the task
-    if (['completed', 'rejected'].includes(status)) {
-      await query(
-        `UPDATE tasks SET status = $2
-         WHERE id = (SELECT task_id FROM assignments WHERE id = $1)
-           AND status = 'assigned'`,
-        [req.params.id, status === 'completed' ? 'completed' : 'open']
-      );
+    const data = doc.data();
+    await ref.update({ status });
+
+    // Handle task status side-effects
+    if (status === 'accepted' || status === 'in-progress') {
+      await col('tasks').doc(data.task_id).update({ status });
+    } else if (status === 'rejected') {
+      await col('tasks').doc(data.task_id).update({ status: 'open' });
+      // Notify volunteer or handle rejection
+      // (Optional: notify NGO that volunteer rejected)
     }
-    res.json(rows[0]);
+
+    const enriched = await enrichAssignment({ id: doc.id, ...data, status });
+    res.json(enriched);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── POST /api/assignments/:id/complete ───────────────────────────────────────
+/**
+ * Mark an assignment as completed.
+ * Requires a photo (multipart/form-data field: "proof") as evidence.
+ * Uploads to Firebase Storage, stores URL in Firestore, sends completion SMS.
+ */
+router.post('/:id/complete', upload.single('proof'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      error: 'A proof photo is required to mark a task as complete. Upload an image as form field "proof".',
+    });
+  }
+
+  try {
+    const ref = col('assignments').doc(req.params.id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Assignment not found.' });
+
+    const data = doc.data();
+    if (data.status === 'completed') {
+      return res.status(409).json({ error: 'Assignment is already completed.' });
+    }
+
+    // Upload photo to Firebase Storage
+    const proofUrl = await uploadCompletionPhoto(
+      req.params.id,
+      req.file.buffer,
+      req.file.mimetype,
+    );
+
+    const completedAt = new Date().toISOString();
+
+    // Update assignment
+    await ref.update({
+      status:       'completed',
+      completed_at: completedAt,
+      proof_url:    proofUrl,
+    });
+
+    // Update task to completed
+    await col('tasks').doc(data.task_id).update({
+      status:       'completed',
+      completed_at: completedAt,
+      proof_url:    proofUrl,
+    });
+
+    // Send completion SMS & Push
+    const [volDoc, taskDoc] = await Promise.all([
+      col('volunteers').doc(data.volunteer_id).get(),
+      col('tasks').doc(data.task_id).get(),
+    ]);
+    if (volDoc.exists && taskDoc.exists) {
+      const vol = volDoc.data();
+      const task = taskDoc.data();
+
+      sendTaskCompletedSMS({
+        phone:         vol.phone,
+        volunteerName: vol.name,
+        taskTitle:     task.title,
+        district:      task.district,
+      });
+    }
+
+    res.json({
+      id:           doc.id,
+      ...data,
+      status:       'completed',
+      completed_at: completedAt,
+      proof_url:    proofUrl,
+    });
+  } catch (err) {
+    console.error('[POST /assignments/:id/complete]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
