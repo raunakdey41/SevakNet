@@ -1,0 +1,342 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "howItWorks": "How it works",
+    "getInvolved": "Get involved",
+    "reportProblem": "Report a problem",
+    "ngoLogin": "NGO Login",
+    "volunteerLogin": "Volunteer Login"
+  },
+  "hero": {
+    "locationBadge": "Community platform · South 24 Parganas, West Bengal",
+    "title1": "Connecting Communities,",
+    "title2": "One Task",
+    "title3": "at a Time",
+    "typewriter": [
+      "Digitizing community needs in West Bengal…",
+      "Matching the right volunteer to every task…",
+      "Turning paper reports into real action…",
+      "From flood relief to food distribution…"
+    ],
+    "stats": {
+      "problems": "Problems Solved",
+      "volunteers": "Volunteers",
+      "wards": "Wards Covered",
+      "ngos": "NGOs Active"
+    },
+    "reportBtn": "Report a Problem",
+    "volunteerBtn": "Become a Volunteer"
+  },
+  "howItWorks": {
+    "title1": "How",
+    "title2": "SevakNet",
+    "title3": "Works",
+    "subtitle": "Three simple steps. Real community impact.",
+    "steps": [
+      {
+        "step": "01",
+        "title": "Citizen Reports",
+        "desc": "Community members submit problems via a simple mobile form — water, food, medical, shelter. No tech expertise needed."
+      },
+      {
+        "step": "02",
+        "title": "NGO Reviews",
+        "desc": "Partner NGOs review, verify and prioritise reports using our urgency scoring system. Critical tasks surface immediately."
+      },
+      {
+        "step": "03",
+        "title": "Volunteer Dispatched",
+        "desc": "AI matches best-fit volunteers by skill, proximity and availability. Tasks get assigned in minutes, not days."
+      }
+    ]
+  },
+  "liveStats": {
+    "activeTasks": "Active tasks today",
+    "volunteersOnline": "Volunteers online",
+    "criticalAlerts": "Critical alerts",
+    "reportsWeek": "Reports this week"
+  },
+  "impact": {
+    "title1": "Real problems.",
+    "title2": "Real people.",
+    "title3": "Real solutions.",
+    "cards": [
+      {
+        "category": "Water Crisis",
+        "title": "Contamination Relief",
+        "story": "When tap water turned brown in Budge Budge, SevakNet connected a plumbing volunteer within hours. 340 families had clean water by Sunday."
+      },
+      {
+        "category": "Food Security",
+        "title": "Post-Flood Distribution",
+        "story": "After Cyclone Remal flooded Maheshtala, 12 volunteers coordinated emergency rations for 900 displaced residents in under 4 hours."
+      },
+      {
+        "category": "Medical Access",
+        "title": "Mobile Medical Camp",
+        "story": "For 60 elderly residents in Pujali without transport, SevakNet organised a mobile medical camp right in their neighbourhood."
+      }
+    ],
+    "cta": "See how it works"
+  },
+  "testimonials": {
+    "title": "Voices from the Field"
+  },
+  "cta": {
+    "title": "Ready to make a difference?",
+    "subtitle": "Join {{count}}+ volunteers already serving communities across West Bengal.",
+    "volunteerBtn": "Join as Volunteer",
+    "ngoBtn": "Register your NGO"
+  },
+  "footer": {
+    "desc": "From community voices to volunteer action. Digitizing grassroots social work across West Bengal.",
+    "platform": {
+      "title": "Platform",
+      "links": ["Report Problem", "Track Report", "Find NGOs", "Emergency Help"]
+    },
+    "forNgos": {
+      "title": "For NGOs",
+      "links": ["NGO Login", "Register NGO", "Dashboard", "Field Reports"]
+    },
+    "volunteers": {
+      "title": "Volunteers",
+      "links": ["Join Now", "Volunteer Login", "My Assignments", "Help Center"]
+    },
+    "bottom": "Built for West Bengal. Built for India. 🇮🇳 · Made with ❤️ for community impact"
+  },
+  "citizenPortal": {
+    "title": "Report a Community Problem",
+    "sub": "Your report reaches NGO partners within minutes.",
+    "steps": ["Your Details", "Problem Info", "Submitted ✓"],
+    "form": {
+      "name": "Your Name *",
+      "namePlaceholder": "e.g. Tamal Sarkar",
+      "phone": "Phone Number *",
+      "phonePlaceholder": "98XXX XXXXX",
+      "ward": "Your Ward / Block *",
+      "wardPlaceholder": "-- Select your area --",
+      "continue": "Continue",
+      "category": "Problem Category *",
+      "description": "Describe the Problem *",
+      "descriptionPlaceholder": "Describe what is happening, how many people are affected, how long this has been going on…",
+      "addPhoto": "Add a photo (optional) — coming soon",
+      "back": "Back",
+      "submit": "Submit Report",
+      "submitting": "Submitting…"
+    },
+    "submitted": {
+      "title": "Report Submitted!",
+      "sub": "Our NGO partners will review and act on your report shortly.",
+      "reportId": "Report ID",
+      "category": "Category",
+      "ward": "Ward",
+      "ts": "Submitted",
+      "another": "Submit Another Report"
+    },
+    "track": {
+      "title": "Track Your Report",
+      "sub": "Enter your phone number to check report status.",
+      "placeholder": "+91 XXXXX XXXXX",
+      "btn": "Track",
+      "notFound": "No reports found for this number."
+    }
+  },
+  "auth": {
+    "welcome": "Welcome back",
+    "ngoSub": "Sign in to your NGO dashboard",
+    "volunteerSub": "Welcome back, hero 🙏",
+    "email": "Email",
+    "phone": "Phone Number",
+    "password": "Password",
+    "forgot": "Forgot password?",
+    "signIn": "Sign In",
+    "signingIn": "Signing in…",
+    "newNgo": "New NGO?",
+    "newVolunteer": "New volunteer?",
+    "registerHere": "Register here",
+    "ngoLoginLink": "NGO login →",
+    "volunteerLoginLink": "Volunteer login →",
+    "registerNgo": "Register your NGO",
+    "ngoRegisterSub": "Join {{count}} NGOs already on the platform",
+    "ngoName": "NGO Name",
+    "district": "District Covered",
+    "districtPlaceholder": "-- Select district --",
+    "confirmPassword": "Confirm Password",
+    "creatingAccount": "Create NGO Account",
+    "registering": "Registering…",
+    "alreadyRegistered": "Already registered?",
+    "becomeVolunteer": "Become a Volunteer",
+    "basicInfo": "Basic Information",
+    "fullName": "Full Name",
+    "skillsTitle": "What can you help with?",
+    "skillsSub": "Select all that apply — you can change later.",
+    "availabilityTitle": "When are you available?",
+    "availabilitySub": "Select your regular free time slots.",
+    "locationTitle": "Where are you based?",
+    "locationSub": "We use this to match you with nearby tasks.",
+    "wardPlaceholder": "-- Select your ward / block --",
+    "complete": "Complete",
+    "successTitle": "Welcome, {{name}}!",
+    "successSub": "You're now part of {{count}}+ volunteers making a difference in West Bengal.",
+    "redirecting": "Redirecting to your dashboard…",
+    "quote": "Every report is a community's voice. Every assignment is your answer.",
+    "criticalTasksToday": "Critical tasks today",
+    "volunteersReady": "Volunteers ready now",
+    "reportsThisWeek": "Reports this week",
+    "joinMovementTitle": "Join the Movement",
+    "joinMovementDesc": "SevakNet helps NGOs manage community needs with precision — volunteer matching, task tracking, and real-time reporting.",
+    "features": [
+      "Instant volunteer matching",
+      "Real-time task dashboard",
+      "Citizen report inbox",
+      "Field report tools"
+    ]
+  },
+  "common": {
+    "step": "STEP",
+    "crisis": "Crisis",
+    "peopleAffectedCount_one": "{{count}} affected",
+    "peopleAffectedCount_other": "{{count}} affected",
+    "due": "Due",
+    "updating": "Updating...",
+    "completing": "Completing..."
+  },
+  "urgency": {
+    "minimal": "Minimal",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "critical": "Critical"
+  },
+  "categories": {
+    "Water": "Water",
+    "Food": "Food",
+    "Medical": "Medical",
+    "Shelter": "Shelter",
+    "Education": "Education",
+    "Other": "Other"
+  },
+  "skills": {
+    "Medical": "Medical",
+    "Food distribution": "Food distribution",
+    "Water/plumbing": "Water/plumbing",
+    "Shelter/construction": "Shelter/construction",
+    "Teaching": "Teaching",
+    "Driving": "Driving",
+    "Cooking": "Cooking",
+    "General help": "General help"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "mapView": "Map View",
+    "tasks": "Tasks",
+    "fieldReports": "Field Reports",
+    "citizenInbox": "Citizen Inbox",
+    "volunteers": "Volunteers",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "collapse": "Collapse"
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "overview": "Overview",
+    "stats": {
+      "openTasks": "Open Tasks",
+      "criticalAlerts": "Critical Alerts",
+      "activeVolunteers": "Active Volunteers",
+      "reportsWeek": "Reports this week"
+    },
+    "recentActivity": "Recent Activity",
+    "noActivity": "No recent activity found.",
+    "viewAll": "View All"
+  },
+  "ngoDashboard": {
+    "searchPlaceholder": "Search tasks, volunteers, wards…",
+    "logout": "Logout",
+    "aiInsight": "AI Insight: You have {{criticalTasks}} critical tasks today. {{activeVolunteers}} volunteers are available in your coverage area with matching skills.",
+    "liveTaskMap": "Live Task Map",
+    "addTask": "Add Task",
+    "priorityQueue": "Priority Queue",
+    "score": "Score",
+    "allTasks": "All Tasks",
+    "allStatus": "All Status",
+    "open": "Open",
+    "assigned": "Assigned",
+    "completed": "Completed",
+    "noTasksTitle": "No tasks right now.",
+    "noTasksSub": "Your community is in good shape today.",
+    "fieldReports": "Field Reports",
+    "submitReport": "Submit Report",
+    "citizenInbox": "Citizen Inbox",
+    "review": "Review",
+    "createTask": "Create Task",
+    "volunteerNetwork": "Volunteer Network",
+    "analyticsOverview": "Analytics Overview",
+    "tasksByCategory": "Tasks by Category",
+    "byUrgency": "By Urgency",
+    "weeklyTaskResolution": "Weekly Task Resolution",
+    "settings": "Settings",
+    "ngoProfile": "NGO Profile",
+    "saveChanges": "Save Changes",
+    "volunteerMatches": "Volunteer Matches",
+    "topMatchedVolunteers": "Top Matched Volunteers",
+    "noVolunteersMatched": "No volunteers matched. Try expanding the search radius.",
+    "fieldReportTitle": "Submit Field Report",
+    "reportSubmitted": "Report Submitted!",
+    "reportSubmittedSub": "Task will appear on the map shortly.",
+    "ward": "Ward",
+    "reportedBy": "Reported By",
+    "category": "Category",
+    "urgency": "Urgency",
+    "peopleAffected": "People Affected",
+    "description": "Description",
+    "deadline": "Deadline",
+    "requiredTimeSlots": "Required Time Slots",
+    "submitFieldReport": "Submit Field Report"
+  },
+  "volunteerDashboard": {
+    "tabs": {
+      "myAssignments": "My Assignments",
+      "nearbyTasks": "Nearby Tasks",
+      "myProfile": "My Profile"
+    },
+    "greeting": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "awaitingResponse_one": "{{count}} task awaiting your response",
+    "awaitingResponse_other": "{{count}} tasks awaiting your response",
+    "welcomeSub": "Welcome to SevakNet — making West Bengal better, together.",
+    "status": {
+      "awaitingAcceptance": "Awaiting Acceptance",
+      "accepted": "Accepted",
+      "inProgress": "In Progress",
+      "completed": "Completed"
+    },
+    "away": "km away",
+    "match": "% match",
+    "acceptTask": "Accept Task",
+    "accepting": "Accepting…",
+    "markInProgress": "Mark In Progress",
+    "markComplete": "Mark Complete",
+    "taskCompletedSuccess": "Task Completed — Thank you!",
+    "aiBar": "{{name}}, you have {{pending}} pending and {{active}} active assignments. Keep it up!",
+    "noAssignmentsTitle": "No assignments yet",
+    "noAssignmentsSub": "Check the Nearby Tasks tab to find tasks that match your skills.",
+    "browseNearby": "Browse Nearby Tasks →",
+    "tasksNearYou": "Tasks Near You",
+    "highPriorityMatch_one": "You match well for {{count}} high-priority task today",
+    "highPriorityMatch_other": "You match well for {{count}} high-priority tasks today",
+    "noNearbyTasksTitle": "No open tasks nearby",
+    "noNearbyTasksSub": "Your community is in good shape today. Check back later.",
+    "myProfile": "My Profile",
+    "tasksDone": "Tasks done",
+    "mySkills": "My Skills",
+    "myAvailability": "My Availability",
+    "saveProfileChanges": "Save Profile Changes",
+    "saving": "Saving…",
+    "saved": "Saved!"
+  }
+}

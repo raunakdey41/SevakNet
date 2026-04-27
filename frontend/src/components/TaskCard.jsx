@@ -1,133 +1,54 @@
 import React from 'react';
-import { getUrgencyTier, getUrgencyColour, formatScore, categoryIcon, timeAgo, deadlineLabel } from '../utils/urgency';
+import { motion } from 'framer-motion';
+import { MapPin, Users, Clock, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import UrgencyBadge from './UrgencyBadge';
+import CategoryChip from './CategoryChip';
 
-export default function TaskCard({ task, onFindVolunteers, onSelect, isSelected }) {
-  const tier    = getUrgencyTier(task.urgency_score);
-  const colour  = getUrgencyColour(task.urgency_score);
-  const dl      = deadlineLabel(task.deadline);
+const BORDER = { 5: '#E24B4A', 4: '#EF9F27', 3: '#F59E0B', 2: '#1D9E75', 1: '#9CA3AF' };
+
+export default function TaskCard({ task, onFindVolunteers, onClick, compact = false }) {
+  const { t } = useTranslation();
 
   return (
-    <div
-      className={`card-${tier} animate-fade-up`}
-      onClick={() => onSelect && onSelect(task)}
-      style={{
-        background: isSelected ? '#1c2230' : '#161b22',
-        border: `1px solid ${isSelected ? colour.bg : '#21262d'}`,
-        borderRadius: 10,
-        padding: '14px 16px',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
+    <motion.div
+      className="card"
+      style={{ padding: compact ? 16 : 20, borderLeft: `4px solid ${BORDER[Math.ceil(task.urgency_score / 20)] || 'var(--color-border)'}`, cursor: onClick ? 'pointer' : 'default', marginBottom: 12 }}
+      onClick={onClick}
+      whileHover={{ y: -2, boxShadow: 'var(--shadow-md)' }}
+      transition={{ duration: 0.2 }}
     >
-      {/* Left urgency stripe */}
-      <div style={{
-        position: 'absolute',
-        left: 0, top: 0, bottom: 0,
-        width: 3,
-        background: colour.bg,
-        borderRadius: '10px 0 0 10px',
-      }} />
-
-      <div style={{ marginLeft: 8 }}>
-        {/* Header row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 16 }}>{categoryIcon(task.category)}</span>
-            <span
-              className={tier === 'critical' ? 'badge-critical' : ''}
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                color: colour.bg,
-                background: `${colour.bg}1a`,
-                border: `1px solid ${colour.bg}44`,
-                borderRadius: 4,
-                padding: '2px 7px',
-              }}
-            >
-              {tier}
-            </span>
-          </div>
-          <span style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 13,
-            fontWeight: 600,
-            color: colour.bg,
-          }}>
-            {formatScore(task.urgency_score)}
-          </span>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <UrgencyBadge score={Math.ceil(task.urgency_score / 20)} />
+          <CategoryChip category={task.category} />
         </div>
-
-        {/* Title */}
-        <div style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontWeight: 600,
-          fontSize: 14,
-          color: '#f0f6fc',
-          marginBottom: 4,
-          lineHeight: 1.3,
-        }}>
-          {task.title}
-        </div>
-
-        {/* Location + Skill */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: '#8b949e' }}>
-            📍 {task.ward_name}, {task.block}
-          </span>
-          {task.skill_required && (
-            <span style={{ fontSize: 12, color: '#8b949e' }}>
-              🔧 {task.skill_required}
-            </span>
-          )}
-          {task.distance_km != null && (
-            <span style={{ fontSize: 12, color: '#8b949e' }}>
-              📏 {Number(task.distance_km).toFixed(1)} km
-            </span>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: '#484f58' }}>
-              {timeAgo(task.reported_at || task.deadline)}
-            </span>
-            {dl && (
-              <span style={{ fontSize: 11, color: dl.color, fontWeight: 600 }}>
-                ⏱ {dl.label}
-              </span>
-            )}
-          </div>
-
-          {onFindVolunteers && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onFindVolunteers(task); }}
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: '#0f1117',
-                background: '#00D2B4',
-                border: 'none',
-                borderRadius: 5,
-                padding: '4px 10px',
-                cursor: 'pointer',
-                fontFamily: "'Space Grotesk', sans-serif",
-                letterSpacing: '0.03em',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={(e) => e.target.style.background = '#00a98f'}
-              onMouseLeave={(e) => e.target.style.background = '#00D2B4'}
-            >
-              Find Volunteers →
-            </button>
-          )}
-        </div>
+        {onClick && <ChevronRight size={16} style={{ color: 'var(--color-text-secondary)', flexShrink: 0, marginTop: 2 }} />}
       </div>
-    </div>
+      <h4 style={{ fontSize: compact ? 13 : 15, fontWeight: 600, marginBottom: compact ? 6 : 10, lineHeight: 1.3 }}>{task.title}</h4>
+      {!compact && <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 10, lineHeight: 1.5, fontFamily: "'Inter',sans-serif" }}>
+        {task.description?.length > 110 ? task.description.slice(0, 110) + '…' : task.description}
+      </p>}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, color: 'var(--color-text-secondary)', fontFamily: "'Inter',sans-serif" }}>
+          <MapPin size={11} /> {task.ward_name}
+        </span>
+        {task.affected_people && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, color: 'var(--color-text-secondary)', fontFamily: "'Inter',sans-serif" }}>
+          <Users size={11} /> {t('common.peopleAffectedCount', { count: task.affected_people, defaultValue: `${task.affected_people} affected` })}
+        </span>}
+        {task.deadline && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, color: 'var(--color-text-secondary)', fontFamily: "'Inter',sans-serif" }}>
+          <Clock size={11} /> {new Date(task.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+        </span>}
+        {task.status && <span className={`status-${task.status}`} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 700, fontFamily: "'Inter',sans-serif" }}>
+          {t(`ngoDashboard.${task.status}`, { defaultValue: task.status.charAt(0).toUpperCase() + task.status.slice(1) })}
+        </span>}
+      </div>
+      {onFindVolunteers && (
+        <button className="btn btn-secondary" style={{ padding: '9px 16px', fontSize: 13, width: '100%', justifyContent: 'center', marginTop: 12 }}
+          onClick={e => { e.stopPropagation(); onFindVolunteers(task); }}>
+          {t('ngoDashboard.volunteerMatches')}
+        </button>
+      )}
+    </motion.div>
   );
 }

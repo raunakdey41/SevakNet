@@ -1,156 +1,78 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import Dashboard    from './pages/Dashboard';
-import SurveyForm   from './pages/SurveyForm';
-import VolunteerView from './pages/VolunteerView';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
-const NAV_LINKS = [
-  { to: '/',          label: 'Operations',  icon: '🗺' },
-  { to: '/survey',    label: 'New Survey',  icon: '📋' },
-  { to: '/volunteer', label: 'Volunteer',   icon: '🙋' },
-];
+import Landing from './pages/Landing';
+import CitizenPortal from './pages/CitizenPortal';
+import { NgoLogin, NgoRegister } from './pages/NgoAuth';
+import NgoDashboard from './pages/NgoDashboard';
+import { VolunteerLogin, VolunteerRegister } from './pages/VolunteerAuth';
+import VolunteerDashboard from './pages/VolunteerDashboard';
 
-function Nav() {
-  const loc = useLocation();
-  const isDashboard = loc.pathname === '/';
+function GuardNgo({ children }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return <Spinner />;
+  if (!isAuthenticated()) return <Navigate to="/ngo/login" replace />;
+  return children;
+}
 
+function GuardVol({ children }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return <Spinner />;
+  if (!isAuthenticated()) return <Navigate to="/volunteer/login" replace />;
+  return children;
+}
+
+function Spinner() {
   return (
-    <nav style={{
-      display: 'flex',
-      alignItems: 'center',
-      background: '#0d1117',
-      borderBottom: '1px solid #21262d',
-      padding: '0 20px',
-      height: 52,
-      flexShrink: 0,
-      zIndex: 200,
-      position: 'relative',
-    }}>
-      {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 28 }}>
-        <div style={{
-          width: 28,
-          height: 28,
-          background: 'linear-gradient(135deg, #00D2B4, #006fa6)',
-          borderRadius: 7,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 14,
-          fontWeight: 700,
-          color: '#0d1117',
-          fontFamily: "'Space Grotesk', sans-serif",
-          flexShrink: 0,
-        }}>
-          SN
-        </div>
-        <span style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontWeight: 700,
-          fontSize: 15,
-          color: '#f0f6fc',
-          letterSpacing: '0.01em',
-        }}>
-          SevakNet
-        </span>
-        <span style={{
-          fontSize: 10,
-          color: '#484f58',
-          fontFamily: "'JetBrains Mono', monospace",
-          letterSpacing: '0.08em',
-        }}>
-          WB / IN
-        </span>
-      </div>
-
-      {/* Nav links */}
-      <div style={{ display: 'flex', gap: 4, flex: 1 }}>
-        {NAV_LINKS.map(({ to, label, icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '6px 14px',
-              borderRadius: 7,
-              textDecoration: 'none',
-              fontSize: 13,
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: isActive ? 600 : 400,
-              color: isActive ? '#00D2B4' : '#8b949e',
-              background: isActive ? 'rgba(0,210,180,0.1)' : 'transparent',
-              transition: 'all 0.15s',
-            })}
-          >
-            <span style={{ fontSize: 15 }}>{icon}</span>
-            <span style={{ display: window.innerWidth < 480 ? 'none' : 'inline' }}>{label}</span>
-          </NavLink>
-        ))}
-      </div>
-
-      {/* Status indicator */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{
-          width: 7,
-          height: 7,
-          borderRadius: '50%',
-          background: '#22c55e',
-          boxShadow: '0 0 6px rgba(34,197,94,0.6)',
-        }} />
-        <span style={{ fontSize: 11, color: '#484f58', fontFamily: "'JetBrains Mono', monospace" }}>
-          LIVE
-        </span>
-      </div>
-    </nav>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: 16 }}>
+      <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--color-border)', borderTop: '3px solid var(--color-primary)', animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ fontFamily: "'Inter',sans-serif", color: 'var(--color-text-secondary)', fontSize: 14 }}>Loading SevakNet…</p>
+      <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
+    </div>
   );
 }
 
-function AppLayout() {
-  const loc = useLocation();
-  const isDashboard = loc.pathname === '/';
-
+function AppRoutes() {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      overflow: isDashboard ? 'hidden' : 'auto',
-    }}>
-      <Nav />
-      <div style={{ flex: 1, overflow: isDashboard ? 'hidden' : 'auto', position: 'relative' }}>
-        <Routes>
-          <Route path="/"          element={<Dashboard />} />
-          <Route path="/survey"    element={<SurveyForm />} />
-          <Route path="/volunteer" element={<VolunteerView />} />
-        </Routes>
-      </div>
-    </div>
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/report" element={<CitizenPortal />} />
+      <Route path="/ngo/login" element={<NgoLogin />} />
+      <Route path="/ngo/register" element={<NgoRegister />} />
+      <Route path="/ngo/dashboard" element={<GuardNgo><NgoDashboard /></GuardNgo>} />
+      <Route path="/volunteer/login" element={<VolunteerLogin />} />
+      <Route path="/volunteer/register" element={<VolunteerRegister />} />
+      <Route path="/volunteer/dashboard" element={<GuardVol><VolunteerDashboard /></GuardVol>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppLayout />
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#161b22',
-            color: '#f0f6fc',
-            border: '1px solid #21262d',
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: 14,
-          },
-          success: { iconTheme: { primary: '#00D2B4', secondary: '#0f1117' } },
-          error:   { iconTheme: { primary: '#ef4444', secondary: '#0f1117' } },
-        }}
-      />
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <AppRoutes />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#fff',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border)',
+              fontFamily: "'Inter', sans-serif",
+              fontSize: 14,
+              boxShadow: 'var(--shadow-md)',
+            },
+            success: { iconTheme: { primary: 'var(--color-secondary)', secondary: '#fff' } },
+            error: { iconTheme: { primary: 'var(--color-danger)', secondary: '#fff' } },
+          }}
+        />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { createSurvey, listLocations } from '../api/client';
+import { createSurvey, listLocations, parseOcrText } from '../api/client';
 import { getUrgencyColour, categoryIcon } from '../utils/urgency';
 import toast from 'react-hot-toast';
 
@@ -96,58 +96,71 @@ export default function SurveyForm() {
     setOcrStatus('running');
 
     try {
-      // Tesseract.js runs client-side
+      // Step 1: Extract raw text client-side with Tesseract.js (no server needed)
       const Tesseract = await import('tesseract.js');
       const worker = await Tesseract.createWorker('eng');
-
       const { data } = await worker.recognize(file);
       await worker.terminate();
 
       const rawText = data.text || '';
-
-      // Parse fields from OCR text
-      const wardMatch = rawText.match(/ward\s*[:#-]?\s*(\w[\w\s]*)/i);
-      const countMatch = rawText.match(/(\d+)\s*(?:people|persons?|families|affected)/i)
-        || rawText.match(/affected[:\s]+(\d+)/i);
-
-      const lowerText = rawText.toLowerCase();
-      let detectedCategory = null;
-      const catKeywords = {
-        medical: ['medical', 'health', 'doctor', 'hospital', 'sick', 'injury'],
-        food: ['food', 'hunger', 'ration', 'meal', 'grain'],
-        water: ['water', 'flood', 'drinking', 'contamination'],
-        shelter: ['shelter', 'house', 'homeless', 'displaced'],
-        education: ['school', 'education', 'student', 'teacher'],
-      };
-      let maxHits = 0;
-      for (const [cat, kws] of Object.entries(catKeywords)) {
-        const hits = kws.filter((k) => lowerText.includes(k)).length;
-        if (hits > maxHits) { maxHits = hits; detectedCategory = cat; }
+      if (!rawText.trim()) {
+        setOcrStatus('error');
+        toast.error('Could not read text from the image — please fill manually.');
+        return;
       }
 
+      // Step 2: Send raw text to backend → Gemini extracts structured fields
+      toast.loading('Gemini is reading your survey…', { id: 'ocr' });
+      const { extracted_fields } = await parseOcrText(rawText);
+      toast.dismiss('ocr');
+
+      const {
+        category: detectedCategory,
+        affected_people: detectedPeople,
+        urgency_level: detectedUrgency,
+        ward_name: detectedWard,
+        block: detectedBlock,
+        district: detectedDistrict,
+        description: detectedDesc,
+      } = extracted_fields || {};
+
+      // Update form with extracted values
       setForm((f) => ({
         ...f,
-        affected_people: countMatch ? countMatch[1] : f.affected_people,
-        category: detectedCategory || f.category,
-        description: rawText.trim().slice(0, 400) || f.description,
+        category:        detectedCategory  || f.category,
+        affected_people: detectedPeople != null ? String(detectedPeople) : f.affected_people,
+        urgency_level:   detectedUrgency   || f.urgency_level,
+        description:     detectedDesc      || f.description,
       }));
 
-      if (wardMatch && locations.length > 0) {
-        const matched = locations.find((l) =>
-          l.ward_name?.toLowerCase().includes(wardMatch[1].toLowerCase().trim()) ||
-          l.block?.toLowerCase().includes(wardMatch[1].toLowerCase().trim())
-        );
-        if (matched) set('location_id', matched.id);
+      // Auto-match location from extracted district/block/ward_name
+      if (locations.length > 0 && (detectedWard || detectedBlock || detectedDistrict)) {
+        const needle = [detectedWard, detectedBlock, detectedDistrict]
+          .filter(Boolean)
+          .map((s) => s.toLowerCase().trim());
+
+        const matched = locations.find((l) => {
+          const hay = [l.ward_name, l.block, l.district]
+            .filter(Boolean)
+            .map((s) => s.toLowerCase().trim());
+          return needle.some((n) => hay.some((h) => h.includes(n) || n.includes(h)));
+        });
+
+        if (matched) {
+          set('location_id', matched.id);
+          toast.success(`📍 Location matched: ${matched.ward_name}, ${matched.district}`);
+        }
       }
 
       setOcrStatus('done');
-      toast.success('OCR complete — review fields below');
+      toast.success('Gemini OCR complete — review the fields below');
     } catch (err) {
       console.error(err);
       setOcrStatus('error');
       toast.error('OCR failed — please fill the form manually');
     }
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();

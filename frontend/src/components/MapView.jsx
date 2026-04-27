@@ -1,108 +1,62 @@
 import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
-import { getUrgencyColour, formatScore, categoryIcon, getUrgencyTier } from '../utils/urgency';
 
-// West Bengal center
-const WB_CENTER = [22.5, 88.35];
-const WB_ZOOM   = 11;
+const URGENCY_COLORS = { 5:'#E24B4A', 4:'#EF9F27', 3:'#F59E0B', 2:'#1D9E75', 1:'#9CA3AF' };
 
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
-
-function FlyToNewTask({ tasks }) {
-  const map = useMap();
-  const prevLen = useRef(0);
+export default function MapView({ tasks=[], onTaskSelect, center=[22.4502,88.2500], zoom=11 }) {
+  const mapRef = useRef(null);
+  const instanceRef = useRef(null);
+  const markersRef = useRef([]);
 
   useEffect(() => {
-    if (tasks.length > prevLen.current && tasks.length > 0) {
-      const newest = tasks[tasks.length - 1];
-      if (newest.lat && newest.lng) {
-        map.flyTo([newest.lat, newest.lng], 14, { duration: 1.2 });
-      }
-    }
-    prevLen.current = tasks.length;
-  }, [tasks, map]);
+    if(instanceRef.current || !mapRef.current) return;
+    let map;
+    import('leaflet').then(L => {
+      if(instanceRef.current) return;
+      map = L.map(mapRef.current, { center, zoom, zoomControl:true, attributionControl:false });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
+      instanceRef.current = map;
+      addMarkers(L, map, tasks);
+    }).catch(()=>{});
+    return () => { if(instanceRef.current){ instanceRef.current.remove(); instanceRef.current=null; } };
+  }, []);
 
-  return null;
-}
+  function addMarkers(L, map, taskList) {
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+    taskList.forEach(task => {
+      if(!task.lat || !task.lng) return;
+      const urgencyLevel = Math.ceil((task.urgency_score || 0) / 20);
+      const c = URGENCY_COLORS[urgencyLevel] || '#534AB7';
+      const icon = L.divIcon({
+        className:'',
+        html:`<div style="width:28px;height:28px;border-radius:50% 50% 50% 0;background:${c};border:3px solid white;box-shadow:0 3px 10px rgba(0,0,0,0.3);transform:rotate(-45deg);"></div>`,
+        iconSize:[28,28], iconAnchor:[14,28],
+      });
+      const marker = L.marker([task.lat,task.lng],{icon}).addTo(map)
+        .bindTooltip(`<strong>${task.title}</strong><br/>${task.ward_name}`,{direction:'top',offset:[0,-30]})
+        .on('click', () => onTaskSelect && onTaskSelect(task));
+      markersRef.current.push(marker);
+    });
+  }
 
-export default function MapView({ tasks = [], onTaskClick, selectedTaskId }) {
+  useEffect(() => {
+    if(!instanceRef.current) return;
+    import('leaflet').then(L => addMarkers(L, instanceRef.current, tasks));
+  }, [JSON.stringify(tasks.map(t=>t.id))]);
+
   return (
-    <MapContainer
-      center={WB_CENTER}
-      zoom={WB_ZOOM}
-      style={{ width: '100%', height: '100%' }}
-      zoomControl={true}
-      attributionControl={true}
-    >
-      <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
-
-      <FlyToNewTask tasks={tasks} />
-
-      {tasks.map((task) => {
-        if (!task.lat || !task.lng) return null;
-        const tier    = getUrgencyTier(task.urgency_score);
-        const colour  = getUrgencyColour(task.urgency_score);
-        const isSelected = task.id === selectedTaskId;
-        const radius  = isSelected ? 16 : tier === 'critical' ? 12 : 9;
-
-        return (
-          <CircleMarker
-            key={task.id}
-            center={[task.lat, task.lng]}
-            radius={radius}
-            pathOptions={{
-              color: colour.bg,
-              fillColor: colour.bg,
-              fillOpacity: isSelected ? 0.95 : 0.75,
-              weight: isSelected ? 3 : 1.5,
-              opacity: 1,
-            }}
-            eventHandlers={{
-              click: () => onTaskClick && onTaskClick(task),
-            }}
-          >
-            <Popup>
-              <div style={{ minWidth: 200, fontFamily: "'DM Sans', sans-serif" }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 18 }}>{categoryIcon(task.category || '')}</span>
-                  <span style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    color: colour.bg,
-                    padding: '2px 7px',
-                    background: `${colour.bg}22`,
-                    borderRadius: 4,
-                  }}>
-                    {tier}
-                  </span>
-                </div>
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: '#f0f6fc' }}>
-                  {task.title}
-                </div>
-                <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 8 }}>
-                  {task.ward_name} · {task.block}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 12,
-                    color: colour.bg,
-                    fontWeight: 600,
-                  }}>
-                    ⚡ {formatScore(task.urgency_score)}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#8b949e' }}>
-                    {task.skill_required}
-                  </span>
-                </div>
-              </div>
-            </Popup>
-          </CircleMarker>
-        );
-      })}
-    </MapContainer>
+    <div style={{ position:'relative', width:'100%', height:'100%', minHeight:280 }}>
+      <div ref={mapRef} style={{ width:'100%', height:'100%', minHeight:280, borderRadius:'var(--radius-md)' }}/>
+      <div style={{ position:'absolute', bottom:12, left:12, zIndex:10,
+        background:'rgba(255,255,255,0.96)', borderRadius:'var(--radius-sm)',
+        padding:'8px 12px', boxShadow:'var(--shadow-sm)', fontSize:11, fontFamily:"'Inter',sans-serif" }}>
+        {[{l:'Critical',c:'#E24B4A'},{l:'High',c:'#EF9F27'},{l:'Medium',c:'#F59E0B'},{l:'Low',c:'#1D9E75'}].map(({l,c})=>(
+          <div key={l} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
+            <div style={{ width:10,height:10,borderRadius:'50%',background:c }}/>
+            <span style={{ color:'var(--color-text-secondary)' }}>{l}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
