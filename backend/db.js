@@ -8,12 +8,21 @@
 const admin = require('firebase-admin');
 
 if (!admin.apps.length) {
-  // Uses GOOGLE_APPLICATION_CREDENTIALS env var automatically, or
-  // falls back to Application Default Credentials (ADC) in Cloud environments.
+  let credential;
+  
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Railway/Cloud: Parse JSON from env var
+    credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
+  } else {
+    // Local: Use Application Default or env var path
+    credential = admin.credential.applicationDefault();
+  }
+
   admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
+    credential,
     projectId: process.env.FIREBASE_PROJECT_ID || 'sevaknet-wb',
   });
+  console.log('✅ Firebase Admin initialized');
 }
 
 const db = admin.firestore();
