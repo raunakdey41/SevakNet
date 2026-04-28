@@ -11,10 +11,17 @@ if (!admin.apps.length) {
   let credential;
   
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // Railway/Cloud: Parse JSON from env var
-    credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
+    console.log('📦 Using FIREBASE_SERVICE_ACCOUNT from environment variables');
+    try {
+      credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
+    } catch (e) {
+      throw new Error('❌ Invalid FIREBASE_SERVICE_ACCOUNT JSON. Make sure you copied the whole JSON correctly.');
+    }
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    console.log('📄 Using credentials from file path:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
+    credential = admin.credential.applicationDefault();
   } else {
-    // Local: Use Application Default or env var path
+    console.warn('⚠️ No Firebase credentials found. Falling back to applicationDefault (may fail if not in GCP)');
     credential = admin.credential.applicationDefault();
   }
 
