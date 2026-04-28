@@ -1,15 +1,15 @@
 'use strict';
 
-import { Router } from 'express';
-const router = Router();
-import multer, { memoryStorage } from 'multer';
-import { col, snapToArr, docToObj } from '../db';
-import { v4 as uuidv4 } from 'uuid';
-import { sendTaskAssignedSMS, sendTaskCompletedSMS, sendTaskReopenedSMS } from '../services/sms';
-import { uploadCompletionPhoto } from '../services/storage';
+const express = require('express');
+const router = express.Router();
+const multer = require('multer');
+const { col, snapToArr, docToObj } = require('../db');
+const { v4: uuidv4 } = require('uuid');
+const { sendTaskAssignedSMS, sendTaskCompletedSMS, sendTaskReopenedSMS } = require('../services/sms');
+const { uploadCompletionPhoto } = require('../services/storage');
 
 const upload = multer({
-  storage: memoryStorage(),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
@@ -289,4 +289,4 @@ router.post('/:id/complete', upload.single('proof'), async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;
