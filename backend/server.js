@@ -10,7 +10,7 @@ const morgan = require('morgan');
 const surveysRouter = require('./routes/surveys');
 const tasksRouter = require('./routes/tasks');
 const volunteersRouter = require('./routes/volunteers');
-const assignmentsRouter = require('./routes/assignments').default;
+const assignmentsRouter = require('./routes/assignments');
 const authRouter = require('./routes/auth');
 const citizenRouter = require('./routes/citizen-reports');
 
