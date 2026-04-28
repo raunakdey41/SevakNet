@@ -101,8 +101,8 @@ app.use((err, _req, res, _next) => {
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🚨 SevakNet API running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 SevakNet API running on port ${PORT}`);
   console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Database    : Firebase Firestore (${process.env.FIREBASE_PROJECT_ID || 'sevaknet-wb'})`);
   console.log(`   Health check: http://localhost:${PORT}/health\n`);
