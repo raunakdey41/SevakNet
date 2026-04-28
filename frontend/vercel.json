@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://sevaknet-production-48cd.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/((?!api).*)",
+      "destination": "/index.html"
     }
   ]
 }

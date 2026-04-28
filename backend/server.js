@@ -3,21 +3,21 @@
 require('dotenv').config();
 
 const express = require('express');
-const cors    = require('cors');
-const helmet  = require('helmet');
-const morgan  = require('morgan');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
 
-const surveysRouter     = require('./routes/surveys');
-const tasksRouter       = require('./routes/tasks');
-const volunteersRouter  = require('./routes/volunteers');
-const assignmentsRouter = require('./routes/assignments');
-const authRouter        = require('./routes/auth');
-const citizenRouter     = require('./routes/citizen-reports');
+const surveysRouter = require('./routes/surveys');
+const tasksRouter = require('./routes/tasks');
+const volunteersRouter = require('./routes/volunteers');
+const assignmentsRouter = require('./routes/assignments').default;
+const authRouter = require('./routes/auth');
+const citizenRouter = require('./routes/citizen-reports');
 
 // Eagerly initialise Firebase so we catch credential errors at startup
 require('./db');
 
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 4000;
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
@@ -40,16 +40,16 @@ app.get('/health', (_req, res) => {
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/surveys',     surveysRouter);
-app.use('/api/tasks',       tasksRouter);
-app.use('/api/volunteers',  volunteersRouter);
+app.use('/api/surveys', surveysRouter);
+app.use('/api/tasks', tasksRouter);
+app.use('/api/volunteers', volunteersRouter);
 app.use('/api/assignments', assignmentsRouter);
-app.use('/api/auth',        authRouter);
+app.use('/api/auth', authRouter);
 app.use('/api/citizen-reports', citizenRouter);
 
 // ─── Locations (Firestore-backed) ─────────────────────────────────────────────
 const { col, snapToArr } = require('./db');
-const { v4: uuidv4 }     = require('uuid');
+const { v4: uuidv4 } = require('uuid');
 
 app.get('/api/locations', async (_req, res) => {
   try {

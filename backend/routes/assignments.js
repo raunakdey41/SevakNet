@@ -1,15 +1,15 @@
 'use strict';
 
-const express = require('express');
-const router  = express.Router();
-const multer  = require('multer');
-const { col, snapToArr, docToObj } = require('../db');
-const { v4: uuidv4 } = require('uuid');
-const { sendTaskAssignedSMS, sendTaskCompletedSMS, sendTaskReopenedSMS } = require('../services/sms');
-const { uploadCompletionPhoto } = require('../services/storage');
+import { Router } from 'express';
+const router = Router();
+import multer, { memoryStorage } from 'multer';
+import { col, snapToArr, docToObj } from '../db';
+import { v4 as uuidv4 } from 'uuid';
+import { sendTaskAssignedSMS, sendTaskCompletedSMS, sendTaskReopenedSMS } from '../services/sms';
+import { uploadCompletionPhoto } from '../services/storage';
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
@@ -23,21 +23,21 @@ async function enrichAssignment(a) {
     col('volunteers').doc(a.volunteer_id).get(),
     col('tasks').doc(a.task_id).get(),
   ]);
-  const vol  = volDoc.exists  ? volDoc.data()  : {};
+  const vol = volDoc.exists ? volDoc.data() : {};
   const task = taskDoc.exists ? taskDoc.data() : {};
   return {
     ...a,
-    volunteer_name: vol.name           || null,
-    phone:          vol.phone          || null,
-    skills:         vol.skills         || [],
-    task_title:     task.title         || null,
-    category:       task.category      || null,
-    urgency_score:  task.urgency_score || null,
+    volunteer_name: vol.name || null,
+    phone: vol.phone || null,
+    skills: vol.skills || [],
+    task_title: task.title || null,
+    category: task.category || null,
+    urgency_score: task.urgency_score || null,
     skill_required: task.skill_required || null,
-    ward_name:      task.ward_name     || null,
-    block:          task.block         || null,
-    district:       task.district      || null,
-    deadline:       task.deadline      || null,
+    ward_name: task.ward_name || null,
+    block: task.block || null,
+    district: task.district || null,
+    deadline: task.deadline || null,
   };
 }
 
@@ -74,15 +74,15 @@ router.post('/', async (req, res) => {
     // Create assignment — status 'pending' until volunteer accepts on their end
     const assignmentId = uuidv4();
     const assignment = {
-      id:           assignmentId,
+      id: assignmentId,
       task_id,
       volunteer_id,
-      match_score:  match_score || null,
-      status:       'pending',
-      assigned_at:  new Date().toISOString(),
+      match_score: match_score || null,
+      status: 'pending',
+      assigned_at: new Date().toISOString(),
       completed_at: null,
-      proof_url:    null,
-      sms_sent:     false,
+      proof_url: null,
+      sms_sent: false,
     };
     await col('assignments').doc(assignmentId).set(assignment);
 
@@ -91,16 +91,16 @@ router.post('/', async (req, res) => {
 
     // Send SMS — fire and forget
     sendTaskAssignedSMS({
-      phone:        vol.phone,
+      phone: vol.phone,
       volunteerName: vol.name,
-      taskTitle:    task.title,
-      category:     task.category,
-      district:     task.district,
-      block:        task.block,
+      taskTitle: task.title,
+      category: task.category,
+      district: task.district,
+      block: task.block,
       urgencyScore: task.urgency_score,
-      deadline:     task.deadline,
-      lat:          task.lat,
-      lng:          task.lng,
+      deadline: task.deadline,
+      lat: task.lat,
+      lng: task.lng,
     }).then((res) => {
       if (res && res.sid) {
         col('assignments').doc(assignmentId).update({ sms_sent: true });
@@ -125,7 +125,7 @@ router.post('/', async (req, res) => {
 router.get('/mine', async (req, res) => {
   // Use user id from JWT if present, otherwise fall back to query param
   const volunteerId = req.user?.id || req.query.volunteerId;
-  
+
   if (!volunteerId) {
     return res.status(400).json({ error: 'volunteerId is required (via token or query)' });
   }
@@ -150,8 +150,8 @@ router.get('/', async (req, res) => {
     let assignments = snapToArr(snap);
 
     if (volunteer_id) assignments = assignments.filter((a) => a.volunteer_id === volunteer_id);
-    if (task_id)      assignments = assignments.filter((a) => a.task_id === task_id);
-    if (status)       assignments = assignments.filter((a) => a.status === status);
+    if (task_id) assignments = assignments.filter((a) => a.task_id === task_id);
+    if (status) assignments = assignments.filter((a) => a.status === status);
 
     assignments.sort((a, b) => new Date(b.assigned_at) - new Date(a.assigned_at));
 
@@ -247,16 +247,16 @@ router.post('/:id/complete', upload.single('proof'), async (req, res) => {
 
     // Update assignment
     await ref.update({
-      status:       'completed',
+      status: 'completed',
       completed_at: completedAt,
-      proof_url:    proofUrl,
+      proof_url: proofUrl,
     });
 
     // Update task to completed
     await col('tasks').doc(data.task_id).update({
-      status:       'completed',
+      status: 'completed',
       completed_at: completedAt,
-      proof_url:    proofUrl,
+      proof_url: proofUrl,
     });
 
     // Send completion SMS & Push
@@ -269,19 +269,19 @@ router.post('/:id/complete', upload.single('proof'), async (req, res) => {
       const task = taskDoc.data();
 
       sendTaskCompletedSMS({
-        phone:         vol.phone,
+        phone: vol.phone,
         volunteerName: vol.name,
-        taskTitle:     task.title,
-        district:      task.district,
+        taskTitle: task.title,
+        district: task.district,
       });
     }
 
     res.json({
-      id:           doc.id,
+      id: doc.id,
       ...data,
-      status:       'completed',
+      status: 'completed',
       completed_at: completedAt,
-      proof_url:    proofUrl,
+      proof_url: proofUrl,
     });
   } catch (err) {
     console.error('[POST /assignments/:id/complete]', err.message);
@@ -289,4 +289,4 @@ router.post('/:id/complete', upload.single('proof'), async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
