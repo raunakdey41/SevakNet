@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, LogOut, MapPin, Clock, CheckCircle, Loader, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -104,7 +104,7 @@ function AssignmentCard({ asgn, onAccept, onComplete, onCompleteWithPhoto }) {
             onClick={() => fileRef.current?.click()}>
             {photoPreview
               ? <img src={photoPreview} alt="Evidence" style={{ maxHeight: 140, borderRadius: 8, maxWidth: '100%' }} />
-              : <div style={{ color: 'var(--color-text-secondary)', fontFamily: "'Inter',sans-serif", fontSize: 13 }}>📷 <strong>Tap to attach photo evidence</strong><br/><span style={{fontSize:11}}>Required to mark task complete</span></div>
+              : <div style={{ color: 'var(--color-text-secondary)', fontFamily: "'Inter',sans-serif", fontSize: 13 }}>📷 <strong>Tap to attach photo evidence</strong><br /><span style={{ fontSize: 11 }}>Required to mark task complete</span></div>
             }
           </div>
           <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handlePhotoChange} />
@@ -187,6 +187,19 @@ export default function VolunteerDashboard() {
   const [locations, setLocations] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef(null);
+
+  // Close notifications on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const name = user?.name || 'Volunteer';
   const first = name.split(' ')[0];
@@ -324,12 +337,68 @@ export default function VolunteerDashboard() {
             {pending.length > 0 ? t('volunteerDashboard.awaitingResponse', { count: pending.length }) : t('volunteerDashboard.welcomeSub')}
           </p>
         </div>
-        <button style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>
-          <Bell size={19} style={{ color: 'var(--color-text-secondary)' }} className={pending.length > 0 ? 'bell-notify' : ''} />
-          {pending.length > 0 && (
-            <span style={{ position: 'absolute', top: 4, right: 4, width: 15, height: 15, borderRadius: '50%', background: 'var(--color-danger)', color: 'white', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pending.length}</span>
-          )}
-        </button>
+        <div style={{ position: 'relative' }} ref={notificationRef}>
+          <button
+            style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: '50%' }}
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="hover-bg-subtle"
+          >
+            <Bell size={19} style={{ color: showNotifications ? 'var(--color-primary)' : 'var(--color-text-secondary)' }} className={pending.length > 0 ? 'bell-notify' : ''} />
+            {pending.length > 0 && (
+              <span style={{ position: 'absolute', top: 4, right: 4, width: 15, height: 15, borderRadius: '50%', background: 'var(--color-danger)', color: 'white', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pending.length}</span>
+            )}
+          </button>
+
+          <AnimatePresence>
+            {showNotifications && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                style={{
+                  position: 'absolute', top: '100%', right: 0, width: 320, background: 'white',
+                  borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--color-border)',
+                  marginTop: 10, zIndex: 100, overflow: 'hidden'
+                }}
+              >
+                <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ fontSize: 14, margin: 0 }}>{t('common.notifications', { defaultValue: 'Notifications' })}</h4>
+                  {pending.length > 0 && <span style={{ fontSize: 11, color: 'var(--color-danger)', fontWeight: 600 }}>{pending.length} {t('common.new', { defaultValue: 'New' })}</span>}
+                </div>
+                <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                  {pending.length === 0 ? (
+                    <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                      <div style={{ fontSize: 24, marginBottom: 8 }}>✨</div>
+                      <p style={{ fontSize: 13, margin: 0 }}>{t('volunteerDashboard.allCaughtUp', { defaultValue: 'All caught up!' })}</p>
+                    </div>
+                  ) : (
+                    pending.map(a => (
+                      <div
+                        key={a.id}
+                        style={{ padding: '12px 18px', borderBottom: '1px solid var(--color-border)', cursor: 'pointer' }}
+                        className="hover-bg-subtle"
+                        onClick={() => { setTab(0); setShowNotifications(false); }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: 'var(--color-text-primary)' }}>{a.task_title}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                          <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}>●</span> {t('volunteerDashboard.status.pending')} • {a.ward_name}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {pending.length > 0 && (
+                  <button
+                    style={{ width: '100%', padding: '12px', border: 'none', background: 'var(--color-primary-subtle)', color: 'var(--color-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    onClick={() => { setTab(0); setShowNotifications(false); }}
+                  >
+                    {t('common.viewAll', { defaultValue: 'View All Assignments' })}
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>{initials}</div>
           <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'Inter',sans-serif", maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
@@ -468,17 +537,17 @@ export default function VolunteerDashboard() {
                 <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontFamily: "'Inter',sans-serif", marginBottom: 14, lineHeight: 1.5 }}>Deleting your profile will deactivate your account and remove you from the volunteer network. This action cannot be undone.</p>
                 {!showDeleteConfirm
                   ? <button className="btn" style={{ background: 'transparent', border: '1.5px solid var(--color-danger)', color: 'var(--color-danger)', padding: '9px 18px', fontSize: 13, borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600 }}
-                      onClick={() => setShowDeleteConfirm(true)}>🗑 Delete My Profile</button>
+                    onClick={() => setShowDeleteConfirm(true)}>🗑 Delete My Profile</button>
                   : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <p style={{ fontSize: 13, color: 'var(--color-danger)', fontWeight: 600, margin: 0 }}>Are you absolutely sure? This cannot be undone.</p>
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
-                        <button className="btn" style={{ flex: 1, background: 'var(--color-danger)', color: 'white', border: 'none', justifyContent: 'center', cursor: 'pointer', borderRadius: 'var(--radius-sm)', padding: '9px', fontWeight: 700 }}
-                          onClick={handleDeleteProfile} disabled={deleting}>
-                          {deleting ? <><Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> Deleting…</> : 'Yes, Delete'}
-                        </button>
-                      </div>
+                    <p style={{ fontSize: 13, color: 'var(--color-danger)', fontWeight: 600, margin: 0 }}>Are you absolutely sure? This cannot be undone.</p>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+                      <button className="btn" style={{ flex: 1, background: 'var(--color-danger)', color: 'white', border: 'none', justifyContent: 'center', cursor: 'pointer', borderRadius: 'var(--radius-sm)', padding: '9px', fontWeight: 700 }}
+                        onClick={handleDeleteProfile} disabled={deleting}>
+                        {deleting ? <><Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> Deleting…</> : 'Yes, Delete'}
+                      </button>
                     </div>
+                  </div>
                 }
               </div>
             </motion.div>
@@ -497,7 +566,7 @@ export default function VolunteerDashboard() {
                 onClick={e => e.stopPropagation()}
               >
                 <div style={{ width: 40, height: 4, background: '#E5E7EB', borderRadius: 2, margin: '0 auto 20px' }} />
-                
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                   <div style={{ flex: 1 }}>
                     <UrgencyBadge score={Math.ceil(selectedTask.urgency_score / 20)} />
