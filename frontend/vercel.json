@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://sevaknet-production.up.railway.app"
+      "source": "/api/(.*)",
+      "destination": "https://sevaknet-production.up.railway.app/$1"
     }
   ]
 }
